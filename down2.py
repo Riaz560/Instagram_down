@@ -88,13 +88,12 @@ if st.button("Download"):
 
 st.markdown("---")
 st.caption("For personal use only. Respect Instagram’s Terms.")
-    if not IG_USERNAME or not IG_PASSWORD:
-        raise RuntimeError(
+if not IG_USERNAME or not IG_PASSWORD:
+    raise RuntimeError(
             "Instagram credentials not found. "
             "Set IG_USERNAME / IG_PASSWORD as environment variables "
             "or in Streamlit Secrets."
         )
-
     loader.login(IG_USERNAME, IG_PASSWORD)
     loader.save_session_to_file(SESSION_FILE)
     return loader
