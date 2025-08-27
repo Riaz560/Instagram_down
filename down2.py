@@ -1,40 +1,92 @@
 import streamlit as st
-import requests
-import re
-from urllib.parse import urlparse
-import time
+import instaloader
+import os
+import shutil
+import tempfile
 
-def extract_video_url(reel_url):
-    """Alternative method using direct URL parsing"""
+def download_reel(reel_url):
     try:
         # Extract shortcode from URL
         if "/reel/" in reel_url:
             shortcode = reel_url.split("/reel/")[-1].split("/")[0]
+        elif "/p/" in reel_url:
+            shortcode = reel_url.split("/p/")[-1].split("/")[0]
         else:
             return None, "Invalid Instagram Reel URL"
-        
-        # Construct the embed URL
-        embed_url = f"https://www.instagram.com/p/{shortcode}/embed/captioned/"
-        
-        # Fetch the embed page
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        
-        response = requests.get(embed_url, headers=headers)
-        response.raise_for_status()
-        
-        # Try to find video URL in the HTML
-        html_content = response.text
-        
-        # Look for video source in the HTML
-        video_url_match = re.search(r'src="(https://[^"]*\.mp4[^"]*)"', html_content)
-        
-        if video_url_match:
-            video_url = video_url_match.group(1)
-            return video_url, f"reel_{shortcode}.mp4"
-        else:
-            return None, "Video URL not found in the page"
+
+        # Initialize Instaloader
+        loader = instaloader.Instaloader()
+
+        # Fetch the Reel
+        post = instaloader.Post.from_shortcode(loader.context, shortcode)
+
+        # Create a temporary directory to download the reel
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Download the Reel to the temporary directory
+            loader.download_post(post, target=temp_dir)
+
+            # Find the MP4 file
+            mp4_file = None
+            for filename in os.listdir(temp_dir):
+                if filename.endswith(".mp4"):
+                    mp4_file = os.path.join(temp_dir, filename)
+                    break
+
+            if mp4_file:
+                # Read the MP4 file as binary
+                with open(mp4_file, 'rb') as f:
+                    video_data = f.read()
+                
+                return video_data, f"reel_{shortcode}.mp4"
+            else:
+                return None, "MP4 file not found"
+
+    except Exception as e:
+        return None, f"Error: {str(e)}"
+
+# Streamlit UI
+st.set_page_config(
+    page_title="Instagram Reel Downloader",
+    page_icon="📥",
+    layout="centered"
+)
+
+st.title("📥 Instagram Reel Downloader")
+st.markdown("এই টুলটি ব্যবহার করে আপনি Instagram Reel ডাউনলোড করতে পারবেন।")
+
+# Input for Instagram Reel URL
+reel_url = st.text_input("Instagram Reel URL লিখুন:", placeholder="https://www.instagram.com/reel/CrVqIBOAeeq/")
+
+if st.button("ডাউনলোড করুন"):
+    if reel_url:
+        with st.spinner("রিল ডাউনলোড হচ্ছে... দয়া করে অপেক্ষা করুন"):
+            video_data, filename = download_reel(reel_url)
+            
+            if video_data:
+                st.success("রিল সফলভাবে ডাউনলোড হয়েছে!")
+                
+                # Download button
+                st.download_button(
+                    label="ভিডিও ডাউনলোড করুন",
+                    data=video_data,
+                    file_name=filename,
+                    mime="video/mp4"
+                )
+            else:
+                st.error(filename)  # error message
+    else:
+        st.warning("দয়া করে একটি বৈধ Instagram Reel URL লিখুন।")
+
+st.markdown("---")
+st.markdown("**নির্দেশনা:**")
+st.markdown("1. Instagram এ আপনার পছন্দের রিল খুলুন")
+st.markdown("2. URL কপি করুন (ঠিকানা বারের লিংক)")
+st.markdown("3. উপরের বক্সে পেস্ট করুন")
+st.markdown("4. 'ডাউনলোড করুন' বাটনে ক্লিক করুন")
+
+# Footer
+st.markdown("---")
+st.caption("এই টুলটি শুধুমাত্র ব্যক্তিগত ব্যবহারের জন্য। Instagram এর terms of service মেনে ব্যবহার করুন。")            return None, "Video URL not found in the page"
             
     except Exception as e:
         return None, f"Error: {str(e)}"
