@@ -1,40 +1,99 @@
 import streamlit as st
-import instaloader
-import os
-import shutil
-import tempfile
+import requests
+import re
+from urllib.parse import urlparse
 import time
-import random
 
-def download_reel(reel_url):
+def extract_video_url(reel_url):
+    """Alternative method using direct URL parsing"""
     try:
         # Extract shortcode from URL
         if "/reel/" in reel_url:
             shortcode = reel_url.split("/reel/")[-1].split("/")[0]
-        elif "/p/" in reel_url:
-            shortcode = reel_url.split("/p/")[-1].split("/")[0]
         else:
             return None, "Invalid Instagram Reel URL"
-
-        # Initialize Instaloader with custom settings
-        loader = instaloader.Instaloader()
         
-        # Reduce rate to avoid blocking
-        loader.request_timeout = 300
-        loader.sleep = True
-        loader.sleep_between_requests = 5
-        loader.save_metadata = False
+        # Construct the embed URL
+        embed_url = f"https://www.instagram.com/p/{shortcode}/embed/captioned/"
         
-        # Random delay to avoid detection
-        time.sleep(random.uniform(2, 5))
+        # Fetch the embed page
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(embed_url, headers=headers)
+        response.raise_for_status()
+        
+        # Try to find video URL in the HTML
+        html_content = response.text
+        
+        # Look for video source in the HTML
+        video_url_match = re.search(r'src="(https://[^"]*\.mp4[^"]*)"', html_content)
+        
+        if video_url_match:
+            video_url = video_url_match.group(1)
+            return video_url, f"reel_{shortcode}.mp4"
+        else:
+            return None, "Video URL not found in the page"
+            
+    except Exception as e:
+        return None, f"Error: {str(e)}"
 
-        # Fetch the Reel
-        try:
-            post = instaloader.Post.from_shortcode(loader.context, shortcode)
-        except Exception as e:
-            return None, f"Failed to fetch reel: {str(e)}"
+def download_video_from_url(video_url):
+    """Download video from direct URL"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(video_url, headers=headers, stream=True)
+        response.raise_for_status()
+        
+        return response.content, None
+        
+    except Exception as e:
+        return None, f"Download error: {str(e)}"
 
-        # Create a temporary directory to download the reel
+# Streamlit UI
+st.set_page_config(
+    page_title="Instagram Reel Downloader",
+    page_icon="📥",
+    layout="centered"
+)
+
+st.title("📥 Instagram Reel Downloader")
+
+method = st.radio("Select download method:", ["Instaloader (Recommended)", "Alternative Method"])
+
+reel_url = st.text_input("Instagram Reel URL লিখুন:", placeholder="https://www.instagram.com/reel/CrVqIBOAeeq/")
+
+if st.button("ডাউনলোড করুন"):
+    if reel_url:
+        with st.spinner("রিল ডাউনলোড হচ্ছে..."):
+            if method == "Instaloader (Recommended)":
+                video_data, filename = download_reel(reel_url)
+            else:
+                video_url, filename = extract_video_url(reel_url)
+                if video_url:
+                    video_data, error = download_video_from_url(video_url)
+                    if error:
+                        st.error(error)
+                else:
+                    video_data = None
+                    st.error(filename)
+            
+            if video_data:
+                st.success("রিল সফলভাবে ডাউনলোড হয়েছে!")
+                st.download_button(
+                    label="ভিডিও ডাউনলোড করুন",
+                    data=video_data,
+                    file_name=filename,
+                    mime="video/mp4"
+                )
+            else:
+                st.error("ডাউনলোড ব্যর্থ হয়েছে। দয়া করে কিছুক্ষণ পরে আবার চেষ্টা করুন।")
+    else:
+        st.warning("দয়া করে একটি বৈধ URL লিখুন।")        # Create a temporary directory to download the reel
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download the Reel to the temporary directory
             try:
