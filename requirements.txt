@@ -1,5 +1,2 @@
 streamlit
-os
-shutil
-time
-tempfile
+instaloader
