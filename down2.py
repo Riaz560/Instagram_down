@@ -96,7 +96,7 @@ if not IG_USERNAME or not IG_PASSWORD:
         )
     loader.login(IG_USERNAME, IG_PASSWORD)
     loader.save_session_to_file(SESSION_FILE)
-    return loader
+return loader
 
 # ---------- DOWNLOAD ----------
 def download_reel(reel_url: str):
