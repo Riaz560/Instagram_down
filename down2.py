@@ -9,7 +9,7 @@ from pathlib import Path
 
 # ---------- secrets ----------
 IG_USERNAME = st.secrets["riazarif19288"]
-IG_PASSWORD = st.secrets["2580"]
+IG_PASSWORD = st.secrets["25802580"]
 SESSION_FILE = ".instaloader-session"
 
 # ---------- helper ----------
